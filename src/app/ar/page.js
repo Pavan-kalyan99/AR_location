@@ -42,7 +42,11 @@ export default function ARPage() {
   }
 
   return (
-    <main className="h-screen w-screen">
+    <main className="h-screen w-screen relative">
+      <div className="absolute top-2 left-2 bg-white bg-opacity-70 p-2 rounded z-50">
+        <p>Latitude: {coords.lat.toFixed(6)}</p>
+        <p>Longitude: {coords.lon.toFixed(6)}</p>
+      </div>
       <a-scene
         vr-mode-ui="enabled: false"
         embedded
@@ -62,9 +66,7 @@ export default function ARPage() {
               scale="4 4 4"
             ></a-box>
             <a-sphere
-              gps-entity-place={`latitude: ${
-                coords.lat + 0.00005
-              }; longitude: ${coords.lon};`}
+              gps-entity-place={`latitude: ${coords.lat}; longitude: ${coords.lon};`}
               color="blue"
               scale="5 5 5"
             />
