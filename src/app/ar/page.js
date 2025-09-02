@@ -43,16 +43,25 @@ export default function ARPage() {
 
   return (
     <main className="h-screen w-screen relative">
-      <div className="absolute top-2 left-2 bg-white bg-opacity-70 p-2 rounded z-50">
-        <p>Latitude: {coords.lat.toFixed(6)}</p>
-        <p>Longitude: {coords.lon.toFixed(6)}</p>
-      </div>
+      {/* Centered overlay */}
+      {coords && (
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+                 bg-white bg-opacity-80 px-6 py-4 rounded-xl shadow-xl z-50 text-center"
+        >
+          <p className="font-bold text-lg">📍 Your Location</p>
+          <p className="text-sm">Latitude: {coords.lat.toFixed(6)}</p>
+          <p className="text-sm">Longitude: {coords.lon.toFixed(6)}</p>
+        </div>
+      )}
+
+      {/* AR scene */}
       <a-scene
         vr-mode-ui="enabled: false"
         embedded
         arjs="sourceType: webcam; gpsMinDistance: 5; gpsTimeInterval: 5000;"
       >
-        {/* Marker-based AR (for desktop) */}
+        {/* Marker-based AR (for desktop test) */}
         <a-marker preset="hiro">
           <a-box color="red" scale="0 0 0"></a-box>
         </a-marker>
@@ -60,20 +69,32 @@ export default function ARPage() {
         {/* GPS-based AR (for mobile) */}
         {coords && (
           <>
+            {/* Red box */}
             <a-box
               gps-entity-place={`latitude: ${coords.lat}; longitude: ${coords.lon};`}
               color="red"
               scale="4 4 4"
             ></a-box>
+
+            {/* Blue sphere */}
             <a-sphere
               gps-entity-place={`latitude: ${coords.lat}; longitude: ${coords.lon};`}
               color="blue"
               scale="5 5 5"
             />
+
+            {/* Sample 3D model */}
+            <a-entity
+              gps-entity-place={`latitude: ${coords.lat}; longitude: ${coords.lon};`}
+              gltf-model="/models/plane.glb"
+              scale="10 10 10"
+              rotation="0 180 0"
+              crossorigin="anonymous"
+            ></a-entity>
           </>
         )}
 
-        {/* Only one camera */}
+        {/* Single camera */}
         <a-camera gps-camera rotation-reader></a-camera>
       </a-scene>
     </main>
