@@ -41,28 +41,37 @@ export default function ARPage() {
   }
 
   return (
-    <main className="h-screen w-screen">
-      <a-scene
-        vr-mode-ui="enabled: false"
-        embedded
-        arjs="sourceType: webcam; gpsMinDistance: 5; gpsTimeInterval: 5000;"
-      >
-        {/* Dynamic red box at current location */}
+   <main className="h-screen w-screen">
+  <a-scene
+    vr-mode-ui="enabled: false"
+    embedded
+    arjs="sourceType: webcam; gpsMinDistance: 5; gpsTimeInterval: 5000;"
+  >
+    {/* Marker-based AR (for desktop) */}
+    <a-marker preset="hiro">
+      <a-box color="red" scale="1 1 1"></a-box>
+    </a-marker>
+
+    {/* GPS-based AR (for mobile) */}
+    {coords && (
+      <>
         <a-box
           gps-entity-place={`latitude: ${coords.lat}; longitude: ${coords.lon};`}
           color="red"
           scale="10 10 10"
         ></a-box>
-
-        {/* Example: object 10m north of user */}
         <a-sphere
           gps-entity-place={`latitude: ${coords.lat + 0.0001}; longitude: ${coords.lon};`}
           color="blue"
           scale="5 5 5"
         ></a-sphere>
+      </>
+    )}
 
-        <a-camera gps-camera rotation-reader></a-camera>
-      </a-scene>
-    </main>
+    {/* Only one camera */}
+    <a-camera gps-camera rotation-reader></a-camera>
+  </a-scene>
+</main>
+
   );
 }
