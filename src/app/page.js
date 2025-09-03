@@ -10,7 +10,7 @@ export default function SimpleAR() {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Scene, Camera, Renderer
+    // Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       70,
@@ -24,23 +24,24 @@ export default function SimpleAR() {
     renderer.xr.enabled = true;
     containerRef.current.appendChild(renderer.domElement);
 
-    // Add AR Button
+    // Add AR button
     document.body.appendChild(
       ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
     );
 
-    // Cube (but don't position yet)
-    const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-    const material = new THREE.MeshNormalMaterial();
-    const cube = new THREE.Mesh(geometry, material);
-    cube.visible = false; // hide until placed
+    // Cube
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.2, 0.2),
+      new THREE.MeshNormalMaterial()
+    );
+    cube.visible = false;
     scene.add(cube);
 
-    // Hit testing setup
+    // Hit test
     let hitTestSource = null;
     let localSpace = null;
 
-    const onSessionStart = async () => {
+    async function initHitTest() {
       const session = renderer.xr.getSession();
       const viewerSpace = await session.requestReferenceSpace("viewer");
       hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
@@ -50,37 +51,28 @@ export default function SimpleAR() {
         hitTestSource = null;
         localSpace = null;
       });
-    };
+    }
 
-    renderer.xr.addEventListener("sessionstart", onSessionStart);
+    renderer.xr.addEventListener("sessionstart", initHitTest);
 
-    // Animation Loop with hit test
-    renderer.setAnimationLoop((timestamp, frame) => {
+    // Render loop
+    renderer.setAnimationLoop((time, frame) => {
       if (frame && hitTestSource && localSpace) {
-        const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(localSpace);
-
-          // Place cube on floor
+        const hits = frame.getHitTestResults(hitTestSource);
+        if (hits.length > 0) {
+          const pose = hits[0].getPose(localSpace);
           cube.visible = true;
           cube.position.set(
             pose.transform.position.x,
             pose.transform.position.y,
             pose.transform.position.z
           );
-
-          // Optional: rotate slowly
           cube.rotation.y += 0.01;
-          cube.rotation.x += 0.01;
         }
       }
-
       renderer.render(scene, camera);
     });
 
-    // Cleanup
     return () => {
       containerRef.current?.removeChild(renderer.domElement);
     };
@@ -88,7 +80,6 @@ export default function SimpleAR() {
 
   return <div ref={containerRef} className="w-full h-screen" />;
 }
-
 
 
 
