@@ -1,117 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 
-export default function Home() {
-  const [ready, setReady] = useState(false);
+export default function SimpleAR() {
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    if (document.getElementById("aframe-script")) {
-      setReady(true);
-      return;
-    }
+    if (!containerRef.current) return;
 
-    const script = document.createElement("script");
-    script.id = "aframe-script";
-    script.src = "https://aframe.io/releases/1.5.0/aframe.min.js";
-    script.onload = () => {
-      // Register components only once
-      if (!AFRAME.components["ar-reticle"]) {
-        AFRAME.registerComponent("ar-reticle", {
-          init: function () {
-            this.el.sceneEl.renderer.xr.addEventListener("sessionstart", () => {
-              const xrSession = this.el.sceneEl.renderer.xr.getSession();
-              xrSession.requestReferenceSpace("viewer").then((refSpace) => {
-                xrSession.requestHitTestSource({ space: refSpace }).then((source) => {
-                  this.hitTestSource = source;
-                });
-              });
-            });
-          },
-          tick: function () {
-            const frame = this.el.sceneEl.frame;
-            if (!frame || !this.hitTestSource) return;
+    // Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      20
+    );
 
-            const refSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
-            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    containerRef.current.appendChild(renderer.domElement);
 
-            if (hitTestResults.length > 0) {
-              const pose = hitTestResults[0].getPose(refSpace);
-              this.el.object3D.visible = true;
-              this.el.object3D.position.set(
-                pose.transform.position.x,
-                pose.transform.position.y,
-                pose.transform.position.z
-              );
-              this.el.object3D.quaternion.set(
-                pose.transform.orientation.x,
-                pose.transform.orientation.y,
-                pose.transform.orientation.z,
-                pose.transform.orientation.w
-              );
-            } else {
-              this.el.object3D.visible = false;
-            }
-          },
-        });
-      }
+    // Add AR Button
+    document.body.appendChild(
+      ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] })
+    );
 
-      if (!AFRAME.components["tap-place"]) {
-        AFRAME.registerComponent("tap-place", {
-          init: function () {
-            const model = document.getElementById("duck");
-            const reticle = document.getElementById("reticle");
-            this.el.sceneEl.addEventListener("click", () => {
-              if (reticle.object3D.visible) {
-                model.setAttribute("position", reticle.getAttribute("position"));
-                model.setAttribute("visible", true);
-              }
-            });
-          },
-        });
-      }
+    // Cube (but don't position yet)
+    const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const material = new THREE.MeshNormalMaterial();
+    const cube = new THREE.Mesh(geometry, material);
+    cube.visible = false; // hide until placed
+    scene.add(cube);
 
-      setReady(true);
+    // Hit testing setup
+    let hitTestSource = null;
+    let localSpace = null;
+
+    const onSessionStart = async () => {
+      const session = renderer.xr.getSession();
+      const viewerSpace = await session.requestReferenceSpace("viewer");
+      hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+      localSpace = await session.requestReferenceSpace("local");
+
+      session.addEventListener("end", () => {
+        hitTestSource = null;
+        localSpace = null;
+      });
     };
-    document.body.appendChild(script);
+
+    renderer.xr.addEventListener("sessionstart", onSessionStart);
+
+    // Animation Loop with hit test
+    renderer.setAnimationLoop((timestamp, frame) => {
+      if (frame && hitTestSource && localSpace) {
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+        if (hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const pose = hit.getPose(localSpace);
+
+          // Place cube on floor
+          cube.visible = true;
+          cube.position.set(
+            pose.transform.position.x,
+            pose.transform.position.y,
+            pose.transform.position.z
+          );
+
+          // Optional: rotate slowly
+          cube.rotation.y += 0.01;
+          cube.rotation.x += 0.01;
+        }
+      }
+
+      renderer.render(scene, camera);
+    });
+
+    // Cleanup
+    return () => {
+      containerRef.current?.removeChild(renderer.domElement);
+    };
   }, []);
 
-  if (!ready) {
-    return <div>Loading WebXR AR...</div>;
-  }
-
-  return (
-    <div style={{ height: "100vh" }}>
-      <a-scene
-        tap-place
-        vr-mode-ui="enabled: false"
-        renderer="colorManagement: true;"
-        webxr="mode: ar; optionalFeatures: hit-test, local-floor;"
-        embedded
-      >
-        {/* Reticle follows hit-test */}
-        <a-entity
-          id="reticle"
-          ar-reticle
-          geometry="primitive: ring; radiusInner: 0.05; radiusOuter: 0.06;"
-          material="color: yellow; shader: flat;"
-          rotation="-90 0 0"
-          visible="false"
-        ></a-entity>
-
-        {/* Model (hidden until tap) */}
-        <a-entity
-          id="duck"
-          gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Duck/glTF-Binary/Duck.glb"
-          visible="false"
-          scale="0.2 0.2 0.2"
-        ></a-entity>
-
-        <a-camera></a-camera>
-      </a-scene>
-    </div>
-  );
+  return <div ref={containerRef} className="w-full h-screen" />;
 }
+
 
 
 
