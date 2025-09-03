@@ -15,13 +15,54 @@ export default function Home() {
     script.id = "aframe-script";
     script.src = "https://aframe.io/releases/1.5.0/aframe.min.js";
     script.onload = () => {
+      // Register components only once
+      if (!AFRAME.components["ar-reticle"]) {
+        AFRAME.registerComponent("ar-reticle", {
+          init: function () {
+            this.el.sceneEl.renderer.xr.addEventListener("sessionstart", () => {
+              const xrSession = this.el.sceneEl.renderer.xr.getSession();
+              xrSession.requestReferenceSpace("viewer").then((refSpace) => {
+                xrSession.requestHitTestSource({ space: refSpace }).then((source) => {
+                  this.hitTestSource = source;
+                });
+              });
+            });
+          },
+          tick: function () {
+            const frame = this.el.sceneEl.frame;
+            if (!frame || !this.hitTestSource) return;
+
+            const refSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+            const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+
+            if (hitTestResults.length > 0) {
+              const pose = hitTestResults[0].getPose(refSpace);
+              this.el.object3D.visible = true;
+              this.el.object3D.position.set(
+                pose.transform.position.x,
+                pose.transform.position.y,
+                pose.transform.position.z
+              );
+              this.el.object3D.quaternion.set(
+                pose.transform.orientation.x,
+                pose.transform.orientation.y,
+                pose.transform.orientation.z,
+                pose.transform.orientation.w
+              );
+            } else {
+              this.el.object3D.visible = false;
+            }
+          },
+        });
+      }
+
       if (!AFRAME.components["tap-place"]) {
         AFRAME.registerComponent("tap-place", {
           init: function () {
             const model = document.getElementById("duck");
             const reticle = document.getElementById("reticle");
             this.el.sceneEl.addEventListener("click", () => {
-              if (reticle && reticle.getAttribute("visible")) {
+              if (reticle.object3D.visible) {
                 model.setAttribute("position", reticle.getAttribute("position"));
                 model.setAttribute("visible", true);
               }
@@ -29,6 +70,7 @@ export default function Home() {
           },
         });
       }
+
       setReady(true);
     };
     document.body.appendChild(script);
@@ -47,16 +89,17 @@ export default function Home() {
         webxr="mode: ar; optionalFeatures: hit-test, local-floor;"
         embedded
       >
-        {/* Reticle */}
+        {/* Reticle follows hit-test */}
         <a-entity
           id="reticle"
+          ar-reticle
           geometry="primitive: ring; radiusInner: 0.05; radiusOuter: 0.06;"
           material="color: yellow; shader: flat;"
           rotation="-90 0 0"
           visible="false"
         ></a-entity>
 
-        {/* Model (hidden until placed) */}
+        {/* Model (hidden until tap) */}
         <a-entity
           id="duck"
           gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Duck/glTF-Binary/Duck.glb"
@@ -69,6 +112,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 
