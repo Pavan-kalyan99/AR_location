@@ -84,16 +84,19 @@ export default function ARPage() {
             />
 
             {/* Sample 3D model */}
-            <a-entity
+            {/* <a-entity
               gps-entity-place={`latitude: ${coords.lat}; longitude: ${coords.lon};`}
               gltf-model="/models/plane.glb"
               scale="10 10 10"
               rotation="0 180 0"
               crossorigin="anonymous"
-            ></a-entity>
+            ></a-entity> */}
           </>
         )}
-
+        {/* Fallback test object always in front of camera */}
+        <a-entity position="0 0 -5">
+          <a-box color="green" scale="2 2 2"></a-box>
+        </a-entity>
         {/* Single camera */}
         <a-camera gps-camera rotation-reader></a-camera>
       </a-scene>
